@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mail } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
+import { resendConfirmation } from '../../lib/supabase';
 import MainLayout from '../../components/layout/MainLayout';
 
 interface LocationState {
@@ -15,6 +16,9 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
   
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -24,6 +28,31 @@ const LoginPage: React.FC = () => {
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    setIsResendingConfirmation(true);
+    setError('');
+
+    try {
+      const { error } = await resendConfirmation(email);
+      
+      if (error) {
+        setError('Failed to resend confirmation email. Please try again.');
+      } else {
+        setConfirmationSent(true);
+      }
+    } catch (err) {
+      setError('An error occurred while resending confirmation email.');
+      console.error('Resend confirmation error:', err);
+    } finally {
+      setIsResendingConfirmation(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,6 +65,8 @@ const LoginPage: React.FC = () => {
     
     setError('');
     setIsLoading(true);
+    setShowEmailConfirmation(false);
+    setConfirmationSent(false);
     
     try {
       const result = await login(email, password);
@@ -43,7 +74,14 @@ const LoginPage: React.FC = () => {
       if (result.success) {
         navigate(redirectTo);
       } else {
-        setError(result.error || 'Login failed');
+        const errorMessage = result.error || 'Login failed';
+        
+        // Check if it's an email confirmation error
+        if (errorMessage.includes('Email not confirmed') || errorMessage.includes('confirmation')) {
+          setShowEmailConfirmation(true);
+        }
+        
+        setError(errorMessage);
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -63,6 +101,36 @@ const LoginPage: React.FC = () => {
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
                 {error}
+              </div>
+            )}
+
+            {showEmailConfirmation && (
+              <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md">
+                <div className="flex items-start">
+                  <Mail className="w-5 h-5 mt-0.5 mr-2 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium mb-2">Email Confirmation Required</p>
+                    <p className="text-sm mb-3">
+                      Your account needs to be verified. Please check your email for a confirmation link.
+                    </p>
+                    {confirmationSent ? (
+                      <p className="text-sm text-green-600 font-medium">
+                        ✓ Confirmation email sent! Check your inbox and spam folder.
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResendConfirmation}
+                        isLoading={isResendingConfirmation}
+                        disabled={isResendingConfirmation}
+                      >
+                        Resend Confirmation Email
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
             

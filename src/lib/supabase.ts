@@ -30,12 +30,33 @@ export const signIn = async (email: string, password: string) => {
     email,
     password,
   });
+  
+  // Handle email confirmation error specifically
+  if (error && error.message === 'Email not confirmed') {
+    return { 
+      data, 
+      error: { 
+        ...error, 
+        message: 'Please check your email and click the confirmation link to activate your account. If you cannot find the email, check your spam folder or contact support.' 
+      } 
+    };
+  }
+  
   return { data, error };
 };
 
 export const signOut = async () => {
   const { error } = await supabase.auth.signOut();
   return { error };
+};
+
+// Resend confirmation email
+export const resendConfirmation = async (email: string) => {
+  const { data, error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email,
+  });
+  return { data, error };
 };
 
 // Database helpers
