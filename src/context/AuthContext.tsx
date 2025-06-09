@@ -70,9 +70,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loadProfile = async (userId: string) => {
     try {
+      setLoading(true);
       const { data, error } = await getProfile(userId);
       if (error) {
         console.error('Error loading profile:', error);
+        // If profile doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, user may need to complete registration');
+        }
       } else {
         setProfile(data);
       }
@@ -85,6 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
+      setLoading(true);
       const { data, error } = await signIn(email, password);
       
       if (error) {
@@ -94,6 +100,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error) {
       return { success: false, error: 'An unexpected error occurred' };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -109,6 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (name: string, email: string, password: string) => {
     try {
+      setLoading(true);
       const { data, error } = await signUp(email, password, name);
       
       if (error) {
@@ -118,6 +127,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error) {
       return { success: false, error: 'An unexpected error occurred' };
+    } finally {
+      setLoading(false);
     }
   };
 

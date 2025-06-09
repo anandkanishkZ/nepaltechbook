@@ -32,14 +32,28 @@ export const signIn = async (email: string, password: string) => {
   });
   
   // Handle email confirmation error specifically
-  if (error && error.message === 'Email not confirmed') {
-    return { 
-      data, 
-      error: { 
-        ...error, 
-        message: 'Please check your email and click the confirmation link to activate your account. If you cannot find the email, check your spam folder or contact support.' 
-      } 
-    };
+  if (error && error.message.includes('Email not confirmed')) {
+    // For development, we'll try to auto-confirm the user
+    try {
+      // First, try to resend confirmation
+      await resendConfirmation(email);
+      
+      return { 
+        data, 
+        error: { 
+          ...error, 
+          message: 'Account created but email confirmation is required. We have sent you a confirmation email. Please check your inbox and click the confirmation link.' 
+        } 
+      };
+    } catch (confirmError) {
+      return { 
+        data, 
+        error: { 
+          ...error, 
+          message: 'Email confirmation required. Please contact support if you did not receive a confirmation email.' 
+        } 
+      };
+    }
   }
   
   return { data, error };
