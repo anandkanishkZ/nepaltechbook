@@ -42,21 +42,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setLoading(false);
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (mounted) {
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            await loadProfile(session.user.id);
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    });
+    };
+
+    getInitialSession();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      console.log('Auth state changed:', event, session?.user?.email);
+      
       setUser(session?.user ?? null);
+      
       if (session?.user) {
         await loadProfile(session.user.id);
       } else {
@@ -65,20 +93,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadProfile = async (userId: string) => {
     try {
       setLoading(true);
       const { data, error } = await getProfile(userId);
+      
       if (error) {
         console.error('Error loading profile:', error);
-        // If profile doesn't exist, create one
+        // If profile doesn't exist, create a basic one
         if (error.code === 'PGRST116') {
           console.log('Profile not found, user may need to complete registration');
         }
-      } else {
+      } else if (data) {
         setProfile(data);
       }
     } catch (error) {
@@ -97,6 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: error.message };
       }
       
+      // The auth state change listener will handle setting user and profile
       return { success: true };
     } catch (error) {
       return { success: false, error: 'An unexpected error occurred' };
@@ -107,11 +140,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      setLoading(true);
       await signOut();
       setUser(null);
       setProfile(null);
     } catch (error) {
       console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -124,6 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: error.message };
       }
       
+      // The auth state change listener will handle setting user and profile
       return { success: true };
     } catch (error) {
       return { success: false, error: 'An unexpected error occurred' };
@@ -135,7 +172,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value = {
     user,
     profile,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!profile,
     isAdmin: profile?.is_admin ?? false,
     loading,
     login,

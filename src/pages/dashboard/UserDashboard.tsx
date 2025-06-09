@@ -49,7 +49,7 @@ interface UserStats {
 }
 
 const UserDashboard: React.FC = () => {
-  const { profile, user } = useAuth();
+  const { profile, user, isAuthenticated, loading } = useAuth();
   const [purchases, setPurchases] = useState<PurchaseWithFile[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
@@ -723,7 +723,20 @@ const UserDashboard: React.FC = () => {
     }
   };
 
-  if (!profile) {
+  // Show loading state while auth is being determined
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto px-4 py-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-800">Loading...</h2>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated || !profile) {
     return (
       <MainLayout>
         <div className="container mx-auto px-4 py-12 text-center">

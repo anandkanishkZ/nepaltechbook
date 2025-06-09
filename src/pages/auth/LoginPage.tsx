@@ -72,7 +72,10 @@ const LoginPage: React.FC = () => {
       const result = await login(email, password);
       
       if (result.success) {
-        navigate(redirectTo);
+        // Add a small delay to ensure auth state is updated
+        setTimeout(() => {
+          navigate(redirectTo);
+        }, 100);
       } else {
         const errorMessage = result.error || 'Login failed';
         
